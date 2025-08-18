@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Welcome to {{ app_name }}</h1>
+  {% if id_token_claims %}
+    <p>You are signed in.</p>
+    
+    {% if entity_warning %}
+      <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <strong>⚠️ No Entity Access</strong><br>
+        You do not have access to any entities. Please contact your administrator to assign you to an entity.
+      </div>
+    {% endif %}
+    
+    {% if entity_selection_needed %}
+      <div style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <strong>🔄 Entity Selection Required</strong><br>
+        You have access to multiple entities. <a href="/select_entity" style="color: #0c5460; text-decoration: underline;">Click here to select an entity</a>.
+      </div>
+    {% endif %}
+    
+    <h3>ID Token Claims</h3>
+    <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
+  {% else %}
+    <p>You are not signed in. Click Login to begin.</p>
+  {% endif %}
+{% endblock %}
+
+

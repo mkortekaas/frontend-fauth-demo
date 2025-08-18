@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Error</h1>
+  <p id="error-message" data-message='{{ message|tojson|e }}'>{{ message }}</p>
+  <script>
+    (function(){
+      var el = document.getElementById('error-message');
+      if (!el) return;
+      var raw = el.getAttribute('data-message');
+      try {
+        var msg = JSON.parse(raw);
+        console.error('Error page:', msg);
+      } catch (e) {
+        console.error('Error page (raw):', raw);
+      }
+    })();
+  </script>
+{% endblock %}
+
+

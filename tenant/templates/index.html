@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Welcome to {{ app_name }}</h1>
+  {% if id_token_claims %}
+    <p>You are signed in.</p>
+    <h3>ID Token Claims</h3>
+    <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
+  {% else %}
+    <p>You are not signed in. Click Login to begin.</p>
+  {% endif %}
+{% endblock %}
+
+

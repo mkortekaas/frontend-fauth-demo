@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Edit User Permissions</h2>
+  
+  <div class="user-info">
+    <h3>User Details</h3>
+    <p><strong>Email:</strong> {{ user_email }}</p>
+    <p><strong>Name:</strong> {{ user_name or 'N/A' }}</p>
+    <p><strong>Entity:</strong> {{ entity_name }}</p>
+  </div>
+
+  <div class="current-permissions">
+    <h3>Current Permissions</h3>
+    {% if current_permissions %}
+      <div class="current-perms-list">
+        {% for perm in current_permissions %}
+          <span class="perm-badge perm-badge-current">{{ perm }}</span>
+        {% endfor %}
+      </div>
+      <p class="current-perms-note">These are the permissions currently assigned to this user for this entity.</p>
+    {% else %}
+      <div class="no-current-perms">
+        <i class="icon-warning">⚠️</i>
+        <span>No permissions currently assigned</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('edit_user_permissions_post', user_id=user_id) }}" class="permissions-form">
+    <div class="form-group">
+      <label>Update Entity Permissions</label>
+      <p class="form-subtitle">Select the permissions this user should have for this entity. This will replace the current permissions.</p>
+      <div class="permissions-grid">
+        {% if available_permissions %}
+          {% for permission in available_permissions %}
+            <div class="permission-item {% if permission in current_permissions %}permission-item-current{% endif %}">
+              <input type="checkbox" 
+                     id="perm_{{ permission }}" 
+                     name="permissions" 
+                     value="{{ permission }}"
+                     {% if permission in current_permissions %}checked{% endif %}>
+              <label for="perm_{{ permission }}">
+                <strong>{{ permission|title }}</strong>
+                {% if permission in current_permissions %}
+                  <span class="current-indicator">✓ Currently Assigned</span>
+                {% endif %}
+                <span class="permission-desc">
+                  {% if permission == 'admin' %}
+                    - Full administrative access
+                  {% elif permission == 'read' %}
+                    - View access
+                  {% elif permission == 'write' %}
+                    - Edit access
+                  {% elif permission == 'delete' %}
+                    - Remove access
+                  {% else %}
+                    - {{ permission }} access
+                  {% endif %}
+                </span>
+              </label>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="no-permissions">No permissions are available for this entity.</p>
+        {% endif %}
+      </div>
+      <small class="form-help">Select the permissions this user should have for this entity</small>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Update Permissions</button>
+      <a href="{{ url_for('list_users') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+
+  <style>
+    .user-info {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      border-left: 4px solid #007bff;
+    }
+
+    .user-info h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .user-info p {
+      margin: 8px 0;
+      color: #555;
+    }
+
+    .permissions-form {
+      max-width: 700px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 15px;
+      font-weight: 600;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .permission-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 15px;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      background: #f8f9fa;
+      transition: background-color 0.2s;
+    }
+
+    .permission-item:hover {
+      background: #e9ecef;
+    }
+
+    .permission-item-current {
+      background: #e8f5e8 !important;
+      border-color: #28a745 !important;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+    }
+
+    .permission-item-current:hover {
+      background: #d1ecf1 !important;
+    }
+
+    .permission-item input[type="checkbox"] {
+      margin-top: 2px;
+      transform: scale(1.2);
+    }
+
+    .current-indicator {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      background: #28a745;
+      color: white;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .permission-item label {
+      font-weight: normal;
+      font-size: 14px;
+      margin-bottom: 0;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .permission-desc {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .current-permissions {
+      background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+      border: 2px solid #2196f3;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.1);
+    }
+
+    .current-permissions h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #1565c0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .current-permissions h3:before {
+      content: "🔐";
+      font-size: 18px;
+    }
+
+    .current-perms-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .perm-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #28a745;
+      color: white;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    }
+
+    .perm-badge-current {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3); }
+      50% { box-shadow: 0 4px 12px rgba(40, 167, 69, 0.5); }
+      100% { box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3); }
+    }
+
+    .current-perms-note {
+      color: #1565c0;
+      font-size: 13px;
+      margin: 0;
+      font-style: italic;
+    }
+
+    .no-current-perms {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      color: #856404;
+    }
+
+    .no-current-perms .icon-warning {
+      font-size: 20px;
+    }
+
+    .no-permissions {
+      color: #666;
+      font-style: italic;
+    }
+
+    .form-subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+
+    .form-help {
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .form-actions {
+      margin-top: 30px;
+      text-align: right;
+      border-top: 1px solid #e9ecef;
+      padding-top: 20px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      margin-left: 10px;
+      text-decoration: none;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #545b62;
+    }
+  </style>
+{% endblock %}

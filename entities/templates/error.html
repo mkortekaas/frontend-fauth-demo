@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="error-container">
+    <div class="error-icon">❌</div>
+    <h1>Authentication Error</h1>
+    
+    <div class="error-message" id="error-message" data-message='{{ message|tojson|e }}'>
+      {% if '\n' in message %}
+        {% for line in message.split('\n') %}
+          {% if line.strip() %}
+            {% if line.startswith('•') %}
+              <li class="error-bullet">{{ line|e }}</li>
+            {% else %}
+              <p class="error-line">{{ line|e }}</p>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <p>{{ message }}</p>
+      {% endif %}
+    </div>
+
+    {% if show_retry and retry_url %}
+      <div class="error-actions">
+        <a href="{{ retry_url }}" class="btn btn-primary">Try Again</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Go Home</a>
+      </div>
+    {% else %}
+      <div class="error-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Go Home</a>
+      </div>
+    {% endif %}
+
+    <div class="error-help">
+      <h3>Need Help?</h3>
+      <p>If this problem persists, please contact your system administrator.</p>
+    </div>
+  </div>
+
+  <style>
+    .error-container {
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 40px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    .error-container h1 {
+      color: #dc3545;
+      margin-bottom: 30px;
+      font-size: 28px;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .error-line {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+
+    .error-bullet {
+      list-style: none;
+      margin: 8px 0;
+      padding-left: 20px;
+      line-height: 1.5;
+    }
+
+    .error-actions {
+      margin: 30px 0;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 0 8px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #545b62;
+    }
+
+    .error-help {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .error-help h3 {
+      color: #495057;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
+    .error-help p {
+      color: #6c757d;
+      font-size: 14px;
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    (function(){
+      var el = document.getElementById('error-message');
+      if (!el) return;
+      var raw = el.getAttribute('data-message');
+      try {
+        var msg = JSON.parse(raw);
+        console.error('Error page:', msg);
+      } catch (e) {
+        console.error('Error page (raw):', raw);
+      }
+    })();
+  </script>
+{% endblock %}
+
+

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Profile</h1>
+  {% if id_token_claims %}
+    <h3>ID Token Claims</h3>
+    <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
+  {% else %}
+    <p>No ID token present. Please <a href="/login">login</a>.</p>
+  {% endif %}
+  {% if token %}
+    <h3>Raw Token</h3>
+    <pre>{{ token | tojson(indent=2) }}</pre>
+  {% endif %}
+{% endblock %}
+
+

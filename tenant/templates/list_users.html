@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Users (Total: {{ total }})</h2>
+  {% if users and users|length > 0 %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Name</th>
+          <th>Registrations</th>
+          <th>Id</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td>{{ u.email }}</td>
+            <td>{{ u.firstName }} {{ u.lastName }}</td>
+            <td>
+              {% if u.registrations %}
+                {% for r in u.registrations %}
+                  <div>{{ r.applicationId }} {% if r.roles %}({{ r.roles|join(', ') }}){% endif %}</div>
+                {% endfor %}
+              {% else %}
+                None
+              {% endif %}
+            </td>
+            <td>{{ u.id }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No users found.</p>
+  {% endif %}
+{% endblock %}
+
+

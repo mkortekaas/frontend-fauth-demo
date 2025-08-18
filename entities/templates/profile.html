@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Profile</h1>
+  {% if id_token_claims %}
+    {% if entity_warning %}
+      <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <strong>⚠️ No Entity Access</strong><br>
+        You do not have access to any entities. Please contact your administrator to assign you to an entity.
+      </div>
+    {% endif %}
+    
+    {% if entity_selection_needed %}
+      <div style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <strong>🔄 Entity Selection Required</strong><br>
+        You have access to multiple entities. <a href="/select_entity" style="color: #0c5460; text-decoration: underline;">Click here to select an entity</a>.
+      </div>
+    {% endif %}
+    
+    {% if selected_entity %}
+      <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <strong>✅ Current Entity</strong><br>
+        <strong>Name:</strong> {{ selected_entity.entityName }}<br>
+        <strong>Permissions:</strong> {{ selected_entity.permissions | join(', ') }}<br>
+        <strong>ID:</strong> {{ selected_entity.entityId }}
+        {% if entity_grants|length > 1 %}
+          <br><a href="/select_entity" style="color: #155724; text-decoration: underline;">Change entity</a>
+        {% endif %}
+      </div>
+    {% endif %}
+    
+    <h3>ID Token Claims</h3>
+    <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
+  {% else %}
+    <p>No ID token present. Please <a href="/login">login</a>.</p>
+  {% endif %}
+  {% if token %}
+    <h3>Raw Token</h3>
+    <pre>{{ token | tojson(indent=2) }}</pre>
+  {% endif %}
+{% endblock %}
+
+

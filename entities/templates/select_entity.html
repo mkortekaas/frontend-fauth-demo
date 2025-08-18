@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Select Entity</h1>
+  <p>You have access to multiple entities. Please select which entity you would like to use:</p>
+  
+  <form method="post" style="margin-top: 20px;">
+    <div style="display: flex; flex-direction: column; gap: 15px; max-width: 500px;">
+      {% for entity in entity_grants %}
+        <label style="display: flex; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; background: #f9f9f9;">
+          <input type="radio" name="entity_id" value="{{ entity.entityId }}" required style="margin-right: 12px;">
+          <div>
+            <div style="font-weight: 600; font-size: 16px;">{{ entity.entityName }}</div>
+            <div style="color: #666; font-size: 14px; margin-top: 4px;">
+              Permissions: {{ entity.permissions | join(', ') }}
+            </div>
+            <div style="color: #888; font-size: 12px; margin-top: 2px;">
+              ID: {{ entity.entityId }}
+            </div>
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+    
+    <div style="margin-top: 20px;">
+      <button type="submit" style="background: {{ navbar_color }}; color: {{ navbar_text_color }}; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer;">
+        Continue
+      </button>
+    </div>
+  </form>
+  
+  <style>
+    input[type="radio"]:checked + div {
+      color: {{ navbar_color }};
+    }
+    
+    label:hover {
+      background: #f0f0f0 !important;
+      border-color: {{ navbar_color }} !important;
+    }
+    
+    input[type="radio"]:checked {
+      accent-color: {{ navbar_color }};
+    }
+  </style>
+{% endblock %}
