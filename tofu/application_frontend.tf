@@ -177,35 +177,39 @@ resource "aws_ssm_parameter" "fa_client_info" {
 }
 
 resource "fusionauth_entity_type" "company" {
-  name                       = "company"
+  for_each                   = module.global-variables.fa_client_list_object
+  name                       = "company-${each.key}"
 }
 resource "fusionauth_entity_type_permission" "user" {
   depends_on                 = [fusionauth_entity_type.company]
-  entity_type_id             = fusionauth_entity_type.company.id
+  for_each                   = module.global-variables.fa_client_list_object
+  entity_type_id             = fusionauth_entity_type.company[each.key].id
   name                       = "user"
-  description                = "User permission"
+  description                = "User permission for ${each.key}"
   is_default                 = true
 }
 resource "fusionauth_entity_type_permission" "admin" {
   depends_on                 = [fusionauth_entity_type.company]
-  entity_type_id             = fusionauth_entity_type.company.id
+  for_each                   = module.global-variables.fa_client_list_object
+  entity_type_id             = fusionauth_entity_type.company[each.key].id
   name                       = "admin"
-  description                = "Admin permission"
+  description                = "Admin permission for ${each.key}"
   is_default                 = false
 }
 resource "fusionauth_entity_type_permission" "sales" {
   depends_on                 = [fusionauth_entity_type.company]
-  entity_type_id             = fusionauth_entity_type.company.id
+  for_each                   = module.global-variables.fa_client_list_object
+  entity_type_id             = fusionauth_entity_type.company[each.key].id
   name                       = "sales"
-  description                = "Sales permission"
+  description                = "Sales permission for ${each.key}"
   is_default                 = false
 }
 
-## each client gets an entity of type company
+## each client gets an entity of type company-${each.key} -- this so each can have it's own permission set
 resource "fusionauth_entity" "entity" {
   depends_on                 = [fusionauth_entity_type.company]
   for_each                   = module.global-variables.fa_client_list_object
   name                       = "entity-${each.key}"
   tenant_id                  = data.fusionauth_tenant.default.id
-  entity_type_id             = fusionauth_entity_type.company.id
+  entity_type_id             = fusionauth_entity_type.company[each.key].id
 }
