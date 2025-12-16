@@ -1,3 +1,6 @@
+import string
+import secrets
+
 #####################################################################################################################################################
 class Users:
     def __init__(self, client):
@@ -10,7 +13,7 @@ class Users:
     def __cache_get__(self, cache_key):
         return self.client.__cache_get__(self.cache, cache_key)
 
-    def create(self, email, password, first_name, last_name, application_id=None, entity_id=None):
+    def create(self, email, password=None, first_name=None, last_name=None, application_id=None, entity_id=None, tenant_id=None):
         """
         Create a user.
         
@@ -23,20 +26,46 @@ class Users:
         if self.__cache_get__(email):
             return None
 
+        # set base
         user_request = {
-            'sendSetPasswordEmail': False,
-            'skipVerification': True,
+            'sendSetPasswordIdentityType': "doNotSend",
+            # 'skipVerification': True,
             'user': {
                 'email': email,
-                'password': password,
+                'username': email,
                 'firstName': first_name,
                 'lastName': last_name,
             }
         }
+        if password is None:
+            idp_domains = self.client.IdentityProviders.get_all_idp_domains()
+            if idp_domains:
+                is_idp = False
+                for domain in idp_domains:
+                    if domain.endswith(email.split('@')[1]):
+                        # add password if the domain is a valid idp domain 
+                        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+                        password = ''.join(secrets.choice(alphabet) for i in range(16))
+                        print(f"FAUTH: USER: {email} - initial password: {password}")
+                        user_request['skipVerification'] = True
+                        user_request['user']['password'] = password
+                        is_idp = True
+                        break
+                if not is_idp:
+                    # new user that has no initial password and needs to be created and emailed
+                    ## TODO: DEBUG this - api ref is here: https://fusionauth.io/docs/apis/users
+                    ##   - I think this uses the template for the tenant ???
+                    user_request['sendSetPasswordIdentityType'] = 'email'
+        else:
+            # we were given an initial password to use
+            user_request['user']['password'] = password
+
+        my_headers = self.client.__get_headers__(tenant_id)
+
         response = self.client.__api_call__(
             url=f"{self.client.server_url}/api/user",
             method="POST",
-            headers=self.client.headers,
+            headers=my_headers,
             json=user_request
         )
         if response:
@@ -66,12 +95,8 @@ class Users:
         Returns:
             dict: Search result containing 'users' and 'total' when successful, None otherwise
         """
+        my_headers = self.client.__get_headers__(tenant_id)
         parts = []
-        if tenant_id:
-            my_headers = self.client.headers.copy()
-            my_headers['X-FusionAuth-TenantId'] = str(tenant_id)
-        else:
-            my_headers = self.client.headers
         
         if application_id:
             parts.append(f'registrations.applicationId:"{application_id}"')
@@ -83,7 +108,7 @@ class Users:
 
         search_request = {
             "search": {
-                "tenantId": self.client.tenant_id,
+                "tenantId": tenant_id if tenant_id else self.client.tenant_id,
                 "queryString": final_query,
                 "startRow": start,
                 "numberOfResults": number_of_results
@@ -116,7 +141,7 @@ class Users:
         else:
             return None
 
-    def delete(self, user_id):
+    def delete(self, user_id, lock=False, tenant_id=None):
         """
         Delete a user by ID.
         
@@ -124,23 +149,27 @@ class Users:
             user_id (str): FusionAuth user ID
             debug (bool): Enable debug output for this request
         """
+        my_headers = self.client.__get_headers__(tenant_id)
         url = f"{self.client.server_url}/api/user/{user_id}"
-        params = {'hardDelete': 'true'}
+        if lock == False:
+            params = {'hardDelete': 'true'}
+        else:
+            params = {}
             
         if self.client.verbose:
             print(f"DEBUG - DELETE Request:")
             print(f"  URL: {url}")
-            print(f"  Headers: {self.headers}")
+            print(f"  Headers: {self.client.headers}")
             print(f"  Params: {params}")
             print("-" * 50)
 
         response = self.client.__api_call__(
             url=url,
             method="DELETE",
-            headers=self.client.headers,
+            headers=my_headers,
             params=params
         )
-        if response:
+        if response and response.status_code == 200:
             return True
         else:
             return False
@@ -155,17 +184,12 @@ class Users:
         Returns:
             dict: User data if found, None otherwise
         """
+        my_headers = self.client.__get_headers__(tenant_id)
         is_valid_uuid, uuid_obj = self.client.__is_valid_uuid__(id)
         if is_valid_uuid:
             params = {'userId': id}
         else:
             params = {'email': id}
-
-        if tenant_id:
-            my_headers = self.client.headers.copy()
-            my_headers['X-FusionAuth-TenantId'] = tenant_id
-        else:
-            my_headers = self.client.headers
 
         response = self.client.__api_call__(
             url=f"{self.client.server_url}/api/user",
@@ -178,7 +202,7 @@ class Users:
         else:
             return None
 
-    def get_id(self, email):
+    def get_id(self, email, tenant_id=None):
         """
         Retrieve the user ID for a given email.
         
@@ -188,13 +212,13 @@ class Users:
         Returns:
             str: User ID if found, None otherwise
         """
-        user = self.get(email)
+        user = self.get(email, tenant_id)
         if user:
             return user['user']['id']
         else:
             return None
 
-    def get_grants(self, user_id):
+    def get_grants(self, user_id, tenant_id=None):
         """
         Retrieve all entity grants for a given user ID.
         
@@ -204,9 +228,10 @@ class Users:
         Returns:
             dict: Grants data if successful, None otherwise
         """
+        my_headers = self.client.__get_headers__(tenant_id)
         response = self.client.__api_call__(
             url=f"{self.client.server_url}/api/entity/grant/search",
-            headers=self.client.headers,
+            headers=my_headers,
             params={'userId': user_id}
         )
         if response:
@@ -214,7 +239,48 @@ class Users:
         else:
             return None
 
-    def register_application(self, user_id, application_id, roles=None):
+    def app_is_registered(self, user_id, application_id, tenant_id=None):
+        """
+        Check if a user is registered to an application.
+        """
+        my_headers = self.client.__get_headers__(tenant_id)
+        response = self.client.__api_call__(
+            url=f"{self.client.server_url}/api/user/registration/{user_id}/{application_id}",
+            headers=my_headers,
+        )
+        if response:
+            return response.json()
+        else:
+            return None
+
+    def deregister_application(self, user_id, application_id, tenant_id=None):
+        """
+        Deregister a user from an application.
+        """
+        my_headers = self.client.__get_headers__(tenant_id)
+
+        # verify application_id is valid in this tenant
+        if not (application_uuid := self.client.Applications.get_id(application_id)):
+            raise ValueError(f"Application {application_id} not found in tenant {tenant_id}")
+
+        # verify user_id is valid in this tenant
+        if not (user_uuid := self.get_id(user_id)):
+            user_new = self.create(user_id)
+            if not user_new:
+                raise ValueError(f"Failed to create user {user_id} in tenant {tenant_id}")
+            user_uuid = user_new['user']['id']
+
+        response = self.client.__api_call__(
+            url=f"{self.client.server_url}/api/user/registration/{user_uuid}/{application_uuid}",
+            method="DELETE",
+            headers=my_headers,
+        )
+        if response and response.status_code == 200:
+            return True
+        else:
+            return False
+
+    def register_application(self, user_id, application_id, roles=None, tenant_id=None):
         """
         Register a user to an application.
         
@@ -226,20 +292,40 @@ class Users:
         Returns:
             dict: Registration data if successful, None otherwise
         """
+        if tenant_id is None:
+            tenant_id = self.client.tenant_id
+        my_headers = self.client.__get_headers__(tenant_id)
+
+        # verify application_id is valid in this tenant
+        if not (application_uuid := self.client.Applications.get_id(application_id)):
+            raise ValueError(f"Application {application_id} not found in tenant {tenant_id}")
+
+        # verify user_id is valid in this tenant
+        if not (user_uuid := self.get_id(user_id)):
+            user_new = self.create(user_id)
+            if not user_new:
+                raise ValueError(f"Failed to create user {user_id} in tenant {tenant_id}")
+            user_uuid = user_new['user']['id']
+
+        # verify if user is already registered to the application
+        if (app_reg := self.app_is_registered(user_uuid, application_uuid)):
+            return app_reg
+
         registration_data = {
-            "applicationId": application_id
+            "applicationId": application_uuid,
+            "username": user_id,
         }
         if roles:
-            registration_data['roles'] = roles
+            registration_data['roles'] = list(roles) if isinstance(roles, set) else roles
 
         request_payload = {
             "registration": registration_data
         }
 
         response = self.client.__api_call__(
-            url=f"{self.client.server_url}/api/user/registration/{user_id}",
+            url=f"{self.client.server_url}/api/user/registration/{user_uuid}",
             method="POST",
-            headers=self.client.headers,
+            headers=my_headers,
             json=request_payload
             )
         if response:
@@ -247,7 +333,7 @@ class Users:
         else:
             return None
 
-    def set_application_roles(self, user_id, application_id, roles):
+    def set_application_roles(self, user_id, application_id, roles, tenant_id=None):
         """
         Set the roles for a user in an application.
         
@@ -259,31 +345,30 @@ class Users:
         Returns:
             dict: Registration data if successful, None otherwise
         """
+        user_uuid = self.get_id(user_id)
+        my_headers = self.client.__get_headers__(tenant_id)
         response = self.client.__api_call__(
-            url=f"{self.client.server_url}/api/user/registration/{user_id}/{application_id}",
-            headers=self.client.headers,
+            url=f"{self.client.server_url}/api/user/registration/{user_uuid}/{application_id}",
+            headers=my_headers,
             )
         if response:
             current_registration = response.json()
         else:
             return None
 
-        current_roles = current_registration['registration']['roles']
-        if roles:
-            current_roles.extend(roles)
-        else:
-            current_roles = roles
+        # Convert roles to list if it's a set
+        roles_list = list(roles) if isinstance(roles, set) else roles
 
-        request_payload = {
-            "registration": {
-                "roles": current_roles
-            }
-        }
+        # Use PUT with the full registration object to replace roles completely
+        # Update the current registration with the new roles
+        current_registration['registration']['roles'] = roles_list
+        
+        request_payload = current_registration
 
         response = self.client.__api_call__(
-            url=f"{self.client.server_url}/api/user/registration/{user_id}/{application_id}",
-            method="PATCH",
-            headers=self.client.headers,
+            url=f"{self.client.server_url}/api/user/registration/{user_uuid}/{application_id}",
+            method="PUT",
+            headers=my_headers,
             json=request_payload
         )
         if response:

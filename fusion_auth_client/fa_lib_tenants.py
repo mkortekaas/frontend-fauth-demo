@@ -5,7 +5,7 @@ class Tenants:
     def __init__(self, client, tenant_id=None):
         self.client = client
         self.cache = {}
-        self.tenant_id = None
+        self.tenant_id = None 
 
         if tenant_id:
             is_valid_uuid, uuid_obj = self.client.__is_valid_uuid__(tenant_id)

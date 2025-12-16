@@ -39,7 +39,10 @@ class Entities:
         """
         entities = self.get(entity_name)
         if entities:
-            return entities['entities'][0]['id']
+            if len(entities['entities']) > 0:   
+                return entities['entities'][0]['id']
+            else:
+                return None
         else:
             return None
 

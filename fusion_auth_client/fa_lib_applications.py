@@ -6,7 +6,7 @@ class Applications:
         self.client = client
         self.cache = {}
 
-    def get(self, application_name):
+    def get(self, application_name, tenant_id=None):
         """
         Retrieve the application details for a given application name.
         
@@ -20,6 +20,10 @@ class Applications:
         if application_name in self.cache:
             return self.cache[application_name]
 
+        headers = self.client.headers.copy()
+        if tenant_id:
+            headers['X-FusionAuth-TenantId'] = tenant_id
+
         # see if the application name is a uuid 
         is_valid_uuid, uuid_obj = self.client.__is_valid_uuid__(application_name)
         if is_valid_uuid:
@@ -27,7 +31,7 @@ class Applications:
             response = self.client.__api_call__(
                 url=f"{self.client.server_url}/api/application/{application_name}",
                 method="GET",
-                headers=self.client.headers
+                headers=headers
             )
             if response:
                 result = response.json()
@@ -36,7 +40,7 @@ class Applications:
             response = self.client.__api_call__(
                 url=f"{self.client.server_url}/api/application/search", 
                 method="POST",
-                headers=self.client.headers,
+                headers=headers,
                 json={"search": {"name": application_name}}
             )
         
@@ -47,11 +51,18 @@ class Applications:
                 if total_found == 1:
                     application = applications[0]
                 else:
-                    print(f"Error: {total_found} applications found for '{application_name}' (expected exactly 1)")
+                    ## Search returns all applications with the name - we need to find the exact match
+                    for app in applications:
+                        if app['name'].lower() == application_name.lower():
+                            application = app
+                            break
+                    if not application:
+                        print(f"Error: {total_found} applications found for '{application_name}' (expected exactly 1)")
+                        return None
         
         return application
 
-    def get_id(self, application_name):
+    def get_id(self, application_name, tenant_id=None, environment=None):
         """
         Retrieve the application ID for a given application name.
         
@@ -61,35 +72,84 @@ class Applications:
         Returns:
             str: Application ID if found, None otherwise
         """
-        application = self.get(application_name)
+        if environment:
+            ## YOU WILL WANT TO PUT YOUR OWN STRINGS/TENANTS HERE FOR EACH ENVIRONMENT YOU HAVE - this is shortcut
+            if environment == "foo" and application_name == "bar":
+                return "UUID"
+            else:
+                print(f"Application ID not found for {application_name} in {environment}")
+                return None
+
+        application = self.get(application_name, tenant_id)
         if application:
             return application['id']
         else:
             return None
 
-    def get_all_users(self, application_name):
+    def get_all_users(self, application_id):
         """
         Retrieve all users for a given application name.
         
         Args:
-            application_name (str): Name of the application to retrieve
+            application_id (str): ID of the application to retrieve users for
+            
+        Returns:
+            list: List of users if found, None otherwise
         """
-        # for some reason this query has to be manually crafted like this or you get a
-        # json parsing error from the FA library???
-        query = "{ \"bool\" : { \"must\" : [ [ { \"nested\" : { \"path\" : \"registrations\", \"query\" : { \"bool\" : { \"must\" : [ { \"match\" : { \"registrations.applicationId\" : \"" + os.environ.get('FUSIONA_APPID') + "\"} } ] } } } } ] ] } }"
-        searchCriteria = {
-            "search": {
-                "query": query,
-                "startRow" : 0,
-                "numberOfResults" : 100,
+        query = {
+            "bool": {
+                "must": [{
+                    "nested": {
+                        "path": "registrations",
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "match": {
+                                            "registrations.applicationId": application_id
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }]
             }
         }
-        print("NEED TO IMPLEMENT THIS")
-
-        # response = self.client.__api_call__(
-        #     url=f"{self.client.server_url}/api/user/search",
-        #     method="POST",
-        #     headers=self.client.headers,
-        #     json=searchCriteria
-        # )
+        
+        all_users = []
+        start_row = 0
+        page_size = 100
+        
+        while True:
+            searchCriteria = {
+                "search": {
+                    "query": json.dumps(query),  ## if we don't use json.dumps() the formatting is off for what FA requires
+                    "startRow" : start_row,
+                    "numberOfResults" : page_size,
+                }
+            }
+            response = self.client.__api_call__(
+                url=f"{self.client.server_url}/api/user/search",
+                method="POST",
+                headers=self.client.headers,
+                json=searchCriteria
+            )
+            if not response:
+                return None
+            
+            result = response.json()
+            users = result.get('users', [])
+            total = result.get('total', 0)
+            
+            all_users.extend(users)
+            
+            # Check if we've retrieved all users
+            if len(all_users) >= total:
+                break
+            
+            # Move to next page
+            start_row += page_size
+        
+        return all_users
 

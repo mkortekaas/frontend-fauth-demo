@@ -5,6 +5,7 @@ https://fusionauth.io/docs/apis/
 """
 
 import requests
+import os
 import json
 import uuid
 from .fa_lib_tenants import Tenants
@@ -16,7 +17,7 @@ from .fa_lib_entities import Entities
 class fusion_auth_client:
     """FusionAuth API client for user and entity grant operations."""
     
-    def __init__(self, server_url, api_key, tenant_id=None, verbose=False):
+    def __init__(self, server_url=None, api_key=None, tenant_id=None, verbose=False, environment=None):
         """
         Initialize the FusionAuth client.
         
@@ -24,14 +25,25 @@ class fusion_auth_client:
             server_url (str): FusionAuth server URL (e.g., https://auth.example.com)
             api_key (str): FusionAuth API key
         """
-        self.server_url = server_url.rstrip('/')  # Remove trailing slash if present
-        self.api_key = api_key
-        self.headers = {'Authorization': api_key}
+        if environment:
+            ## this would be if you need shortcut for setting variables in your environment(s)
+            raise ValueError(f"Unknown environment: {environment}")
+        else:            
+            self.server_url = server_url.rstrip('/')  # Remove trailing slash if present
+            self.api_key = api_key
+            self.tenant_id = tenant_id
+
+        if not self.server_url or not self.api_key or not self.tenant_id:
+            raise ValueError("FAUTH Server URL, API key, and tenant ID are required")
+
+        self.headers = {'Authorization': self.api_key}
         self.verbose = verbose
-        self.tenant_id = tenant_id
 
         # Initialize Tenants class -- uses tenant_id
-        self.Tenants = Tenants(self, tenant_id)
+        self.Tenants = Tenants(self, self.tenant_id)
+        tenant_id = self.Tenants.tenant_id
+
+        self.__verbose_print__("TENANT ID: " + self.tenant_id)
 
         # Initialize sub-classes
         self.Users = Users(self)
@@ -82,7 +94,7 @@ class fusion_auth_client:
             if response.status_code == retval:
                 return response
             else:
-                print(f"WARNING: {method} {url} - {response.status_code} - {response.text}")
+                # print(f"WARNING: {method} {url} - {response.status_code} - {response.text}")
                 return None
         except requests.RequestException as e:
             print(f"ERROR: {url} - {method} - {e}")
@@ -186,3 +198,11 @@ class fusion_auth_client:
     def __verbose_print__(self, message):
         if self.verbose:
             print(f"DEBUG: {message}")
+
+    def __get_headers__(self, tenant_id=None):
+        if tenant_id:
+            my_headers = self.headers.copy()
+            my_headers['X-FusionAuth-TenantId'] = tenant_id
+        else:
+            my_headers = self.headers
+        return my_headers

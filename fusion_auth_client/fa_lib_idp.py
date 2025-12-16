@@ -124,3 +124,27 @@ class IdentityProviders:
             return response.json()
         else:
             return None
+
+    def get_all_idp_domains(self):
+        """
+        Retrieve all domain names configured across all identity providers.
+        
+        Returns:
+            list: A list of domain names, or None if the request fails
+        """
+        response = self.client.__api_call__(
+            url=f"{self.client.server_url}/api/identity-provider",
+            method="GET",
+            headers=self.client.headers,
+        )
+        if not response:
+            return None
+            
+        result = response.json()
+        domains = []
+        
+        # Extract domains from each identity provider
+        for idp in result.get('identityProviders', []):
+            domains.extend(idp.get('domains', []))
+                
+        return domains
